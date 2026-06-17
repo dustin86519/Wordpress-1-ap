@@ -15,6 +15,7 @@ env:
   ECR_REPOSITORY: wordpress-ap-deploy          # ECR repo 名稱
   ECS_CLUSTER: wordpress-production-cluster-cz6wdk         # ECS Cluster 名稱
   ECS_SERVICE: wp-ap-task-service-ink1yv3m         # ECS Service 名稱
+  ECS_TASK_DEFINITION_NAME: wp-ap-task
   CONTAINER_NAME: wp-ap                  # task definition 裡的 container 名稱
 
 jobs:
@@ -92,7 +93,7 @@ jobs:
       - name: Download current task definition
         run: |
           aws ecs describe-task-definition \
-            --task-definition ${{ env.ECS_SERVICE }} \
+            --task-definition ${{ env.ECS_TASK_DEFINITION_NAME }} \
             --query taskDefinition \
             > task-definition.json
 
