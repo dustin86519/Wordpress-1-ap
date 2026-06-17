@@ -1,72 +1,114 @@
-name: Build & Push Docker Image
+name: Build, Push & Deploy to ECS
 
 on:
   push:
     branches:
       - main
     tags:
-      - 'v*.*.*'   # 推 v1.0.0 這類 tag 時也會觸發
+      - 'v*.*.*'
   pull_request:
     branches:
-      - main       # PR 時只 build，不 push
+      - main   # PR 時只 build，不 push 也不 deploy
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}   # 例：your-user/github-action-test
+  AWS_REGION: ap-east-2
+  ECR_REPOSITORY: wordpress-ap-deploy          # ECR repo 名稱
+  ECS_CLUSTER: wordpress-production-cluster-cz6wdk         # ECS Cluster 名稱
+  ECS_SERVICE: wp-ap-task-service-ink1yv3m         # ECS Service 名稱
+  CONTAINER_NAME: wp-ap                  # task definition 裡的 container 名稱
 
 jobs:
+  # ============================================================
+  # Job 1: Build image & push to ECR
+  # ============================================================
   build-and-push:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write   # 允許推送到 ghcr.io
+    outputs:
+      image: ${{ steps.export.outputs.image }}   # 把完整 image URI 傳給 deploy job
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 設定 QEMU（若需要 multi-platform build，如 arm64）
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      # 啟用 Docker Buildx（支援 cache、multi-platform）
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 登入 GitHub Container Registry
-      # PR 時不登入（也不會 push）
-      - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # 自動產生 tags 和 labels
-      # main branch → latest + sha-xxxxxxx
-      # v1.2.3 tag  → 1.2.3 + 1.2 + 1 + latest
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-
-      # Build & Push
-      - name: Build and push Docker image
+      # Build & Push，tag 用 short SHA 確保每次都唯一可追蹤
+      - name: Build and push to ECR
+        id: build-push
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64   # 視需要移除 arm64
+          platforms: linux/amd64   # Fargate 用 amd64；若用 Fargate ARM 改成 linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # 利用 GitHub Actions cache 加速二次 build
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # 輸出完整 image URI 供後續 deploy job 使用
+      
+      # 把 image URI 存成 output，格式：123456789.dkr.ecr.ap-east-2.amazonaws.com/cloud-wp-repo:sha
+      - name: Export image URI
+        id: export
+        run: |
+          echo "image=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  # ============================================================
+  # Job 2: Deploy to ECS（只在 push to main 或推 tag 時執行）
+  # ============================================================
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # 從 ECS 抓現有的 task definition，換掉 image URI，再 register 新版本
+      # 這樣可以保留其他設定（CPU/Memory/環境變數等），只更新 image
+      - name: Download current task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_SERVICE }} \
+            --query taskDefinition \
+            > task-definition.json
+
+      - name: Update image in task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ needs.build-and-push.outputs.image }}
+
+      # Register 新 task definition 並觸發 rolling deploy
+      - name: Deploy to ECS service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true   # 等待部署完成才算 job 成功

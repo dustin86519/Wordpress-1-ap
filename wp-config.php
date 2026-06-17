@@ -9,7 +9,7 @@
 define( 'AS3CF_SETTINGS', serialize( array(
     'provider'          => 'aws',
     'use-server-roles'  => true,                                        // 強制開啟 AWS 原生 IAM Role 模式
-    'bucket'            => getenv('AWS_S3_BUCKET') ?: 'wp-access-file-bucket', // 動態讀取 Docker 傳進來的 Bucket
+    'bucket'            => getenv('AWS_S3_BUCKET') ?: die('Missing AWS_S3_BUCKET'),
     'copy-to-s3'        => true,                                        // 核心功能：上傳媒體時自動同步到 S3
     'serve-from-s3'     => true,                                        // 核心功能：自動把前端圖片網址改成 S3 網址
     'remove-local-file' => false,                                       // 是否刪除 AP 機本地檔案 (建議先留 false)

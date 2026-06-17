@@ -3,6 +3,9 @@
 .env.local
 .env.production
 
+# 含有敏感資訊的本地指令備忘
+cli.txt
+
 # macOS
 .DS_Store
 
