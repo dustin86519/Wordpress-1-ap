@@ -14,7 +14,7 @@ env:
   AWS_REGION: ap-east-2
   ECR_REPOSITORY: wordpress-ap-deploy          # ECR repo 名稱
   ECS_CLUSTER: wordpress-production-cluster-cz6wdk         # ECS Cluster 名稱
-  ECS_SERVICE: wp-ap-task         # ECS Service 名稱
+  ECS_SERVICE: wp-ap-task-service-ink1yv3m         # ECS Service 名稱
   CONTAINER_NAME: wp-ap                  # task definition 裡的 container 名稱
 
 jobs:
