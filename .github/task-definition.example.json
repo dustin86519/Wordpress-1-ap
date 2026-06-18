@@ -69,7 +69,8 @@
         "options": {
           "awslogs-group": "/ecs/wp-ap",
           "awslogs-region": "ap-east-2",
-          "awslogs-stream-prefix": "ecs"
+          "awslogs-stream-prefix": "ecs",
+          "awslogs-create-group": "true"
         }
       }
     }
