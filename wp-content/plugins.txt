@@ -4,3 +4,4 @@ User wants: "You are a professional plugin name extractor. Please only output th
 
 They provide a letter: "以下是美編需求信件：{我要安裝 contact-form-7ent#}}" So presumably the plugin name is inside. The string: "contact-form-7ent#" maybe they mean "contact-form-7ent" or "contact-form-7ent#" but the plugin identifier usually is "contact-form-7". But the text shows "contact-form-7ent#". This may be a mistake. They want to extract plugin name. So we should output "contact-form-7" or "contact-form-7ent"? Let's parse: "contact-form-7ent#" The plugin "contact-form-7" exists. "ent#" seems extraneous. But maybe they purposely added random characters. The instruction: only output the plugin English identifier. So we need to extract "contact-form-7". That is the plugin name. Yes. Let's output that.
 </think>contact-form-7
+contact-form-7
