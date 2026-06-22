@@ -86,7 +86,7 @@ jobs:
             --comment "Deploy wp-ap from GitHub Actions" \
             --parameters 'commands=[
               "set -e",
-              "IMAGE_URI=\"${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}\"",
+              "IMAGE_URI=\"${{ needs.build-and-push.outputs.image }}\"",
               "CONTAINER=\"${{ env.CONTAINER_NAME }}\"",
               "echo === 1. 登入 AWS ECR ===",
               "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}",
