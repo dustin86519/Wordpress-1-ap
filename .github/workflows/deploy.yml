@@ -9,7 +9,7 @@ on:
 env:
   AWS_REGION:       ap-east-2
   ECR_REGISTRY:     713872021760.dkr.ecr.ap-east-2.amazonaws.com
-  ECR_REPOSITORY:   wordpress-web
+  ECR_REPOSITORY:   wordpress-ap
   CONTAINER_NAME:   wp-ap                       # EC2 上的容器名稱
 
 jobs:
