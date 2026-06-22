@@ -49,12 +49,14 @@ jobs:
         working-directory: ./  # Dockerfile 位於專案根目錄
         run: |
           IMAGE_URI=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          IMAGE_LATEST=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
 
           echo "Building image: $IMAGE_URI"
-          docker build -t $IMAGE_URI .
+          docker build -t $IMAGE_URI -t $IMAGE_LATEST .
 
           echo "Pushing image to ECR..."
           docker push $IMAGE_URI
+          docker push $IMAGE_LATEST
 
           echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
 
