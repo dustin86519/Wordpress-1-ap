@@ -1,0 +1,4 @@
+# ======= 這是你要額外追加的 WordPress 外掛清單 =======
+# 範例：Akismet 防垃圾留言外掛
+https://downloads.wordpress.org/plugin/akismet.latest-stable.zip
+

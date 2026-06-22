@@ -23,15 +23,32 @@ RUN wget -q https://github.com/stuttter/ludicrousdb/archive/refs/heads/master.zi
     && mv ludicrousdb-master/ludicrousdb/drop-ins/db.php /usr/src/wordpress/wp-content/ \
     && rm -rf ludicrousdb.zip ludicrousdb-master
 
-# 🔥【關鍵修正】db-config.php 必須複製到 wp-content 目錄下，LudicrousDB 才能被正確激活！
+# 🔥 db-config.php 必須複製到 wp-content 目錄下，LudicrousDB 才能被正確激活！
 COPY db-config.php /usr/src/wordpress/wp-content/db-config.php
 
 # 5. 複製繁體中文語言包
 COPY languages /usr/src/wordpress/wp-content/languages
 
+
+# ========================================================
+# 🆕【優化步驟】自動讀取外部 plugins.txt 並批次下載、安裝外掛
+# ========================================================
+COPY plugins.txt /tmp/plugins.txt
+RUN mkdir -p /usr/src/wordpress/wp-content/plugins \
+    && while read -r line || [ -n "$line" ]; do \
+        url=$(echo "$line" | tr -d '\r' | xargs); \
+        [ -z "$url" ] && continue; \
+        echo "$url" | grep -q "^#" && continue; \
+        echo "--> 正在自動下載並安裝外掛: $url" \
+        && wget -q "$url" -O /tmp/plugin.zip \
+        && unzip -o -q /tmp/plugin.zip -d /usr/src/wordpress/wp-content/plugins/ \
+        && rm -f /tmp/plugin.zip; \
+    done < /tmp/plugins.txt \
+    && rm -f /tmp/plugins.txt
+
+
 # ========================================================
 # 6. 🔥【修正核心】利用 mu-plugins 機制，強制自動啟用 WP Offload Media
-# 修正為官方正確入口檔名 wordpress-s3.php，並改用 printf 單行格式避免 Docker 多行換行出錯
 # ========================================================
 RUN mkdir -p /usr/src/wordpress/wp-content/mu-plugins \
     && printf "<?php\nadd_action('init', function() {\n    if (!function_exists('activate_plugin')) { require_once ABSPATH . 'wp-admin/includes/plugin.php'; }\n    \$plugin = 'amazon-s3-and-cloudfront/wordpress-s3.php';\n    if (!is_plugin_active(\$plugin)) { activate_plugin(\$plugin); }\n});\n" > /usr/src/wordpress/wp-content/mu-plugins/auto-activate.php

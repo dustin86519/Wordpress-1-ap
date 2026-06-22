@@ -5,6 +5,7 @@
 
 # 含有敏感資訊的本地指令備忘
 cli.txt
+CICD-SETUP.md
 
 # macOS
 .DS_Store
