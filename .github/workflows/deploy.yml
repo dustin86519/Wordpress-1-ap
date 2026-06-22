@@ -4,12 +4,12 @@ on:
   push:
     branches:
       - main          # 推到 main 分支自動觸發
+      - v6
 
 env:
   AWS_REGION:       ap-east-2
   ECR_REGISTRY:     713872021760.dkr.ecr.ap-east-2.amazonaws.com
   ECR_REPOSITORY:   cloud-store-wp-image
-  IMAGE_TAG:        ap                          # 對應 cli.txt 的 :ap tag
   CONTAINER_NAME:   wp-ap                       # EC2 上的容器名稱
 
 jobs:
@@ -26,6 +26,12 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+
+      - name: Set image tag
+        run: |
+          BRANCH=$(echo "${GITHUB_REF_NAME}" | sed 's/[^a-zA-Z0-9._-]/-/g')
+          SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          echo "IMAGE_TAG=${BRANCH}-${SHA}" >> $GITHUB_ENV
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
